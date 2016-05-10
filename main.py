@@ -3,6 +3,10 @@
 from time import sleep
 import Adafruit_DHT
 import requests
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(4, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 while True:
     humidity, temperature = Adafruit_DHT.read_retry(Adafruit_DHT.DHT22, 4)
@@ -20,12 +24,4 @@ while True:
     else:
         print('Failed to get reading. Try again!')
     sleep(300)
-
-'''import RPi.GPIO as GPIO
-
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(4, GPIO.IN)
-input = GPIO.input(4)
-
-print("Hello" + str(input))'''
 
