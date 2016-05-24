@@ -1,5 +1,8 @@
 # smarthome-sensors
 
+sudo vim /etc/rc.local
+/usr/bin/screen -d -m /home/pi/smarthome/sensors/main.py
+
 crontab -e
 
 # Send CPU temperature each 5 minutes
