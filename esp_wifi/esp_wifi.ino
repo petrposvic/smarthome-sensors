@@ -5,32 +5,12 @@
 #define DHTPIN 2
 #define DHTTYPE DHT22
 
-const char* ssid     = "name";
-const char* password = "pass";
-
-// Local IP adress where is the server
+const char* ssid = "ssid";
+const char* pass = "pass";
 const char* host = "192.168.1.203";
-
-StaticJsonBuffer<200> jsonBuffer;
-JsonObject& root = jsonBuffer.createObject();
+const int   port = 3000;
 
 DHT dht(DHTPIN, DHTTYPE);
-
-class ByteCounter : public Print {
-  public:
-    ByteCounter(): len(0) {}
-
-    virtual size_t write(uint8_t c) {
-      len++;
-    }
-
-    int length() const {
-      return len;
-    }
-
-  private:
-    int len;
-};
 
 void setup() {
   Serial.begin(115200);
@@ -41,7 +21,8 @@ void setup() {
   Serial.print("connecting to ");
   Serial.println(ssid);
 
-  WiFi.begin(ssid, password);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, pass);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -54,7 +35,6 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   dht.begin();
-  root["device"] = "wifi";
 }
 
 void loop() {
@@ -83,41 +63,40 @@ void loop() {
   Serial.print(hic);
   Serial.println(" *C");
 
-  // Send data
-  Serial.print("connecting to ");
-  Serial.println(host);
+  send_data(t, h);
 
-  // Use WiFiClient class to create TCP connections
-  WiFiClient client;
-  const int httpPort = 3000;
-  if (!client.connect(host, httpPort)) {
-    Serial.println("connection failed");
-    return;
-  }
+  // Wait 53 secs, total 60 secs
+  // (cca 7 secs for sensor reading and request sending)
+  delay(53000);
+}
 
-  // This will send the request to the server
-  /*client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-               "Host: " + host + "\r\n" + 
-               "Connection: close\r\n\r\n");*/
+void send_data(float t, float h) {
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& root = jsonBuffer.createObject();
+  root["device"] = "wifi";
   root["temperature"] = t;
   root["humidity"] = h;
 
-  ByteCounter counter;
-  root.printTo(counter);
-  int contentLength = counter.length();
+  Serial.print("connecting to ");
+  Serial.println(host);
+
+  WiFiClient client;
+  if (!client.connect(host, port)) {
+    Serial.println("connection failed");
+    return;
+  }
 
   client.println("POST /api/measurements HTTP/1.1");
   client.print("Host: "); client.println(host);
   client.println("Cache-Control: no-cache");
   client.println("Content-Type: application/json");
   client.print("Content-Length: ");
-  client.println(contentLength);
+  client.println(root.measureLength());
   client.println();
   root.printTo(client);
   client.println();
   delay(500);
 
-  // Read all the lines of the reply from server and print them to Serial
   while (client.available()) {
     String line = client.readStringUntil('\r');
     Serial.print(line);
@@ -125,9 +104,5 @@ void loop() {
 
   Serial.println();
   Serial.println("closing connection");
-
-  // Wait 53 secs, total 60 secs
-  // (cca 7 secs for sensor reading and request sending)
-  delay(53000);
 }
 
