@@ -23,5 +23,5 @@ while True:
             print('Connection error')
     else:
         print('Failed to get reading. Try again!')
-    sleep(300)
+    sleep(60)
 
