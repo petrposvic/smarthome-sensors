@@ -65,9 +65,9 @@ void loop() {
 
   send_data(t, h);
 
-  // Wait 53 secs, total 60 secs
+  // Wait 4 minutes and 53 secs, total 5 minutes
   // (cca 7 secs for sensor reading and request sending)
-  delay(53000);
+  delay(295000);
 }
 
 void send_data(float t, float h) {
