@@ -38,7 +38,6 @@ void setup() {
 }
 
 void loop() {
-  delay(5000);
 
   // Read sensor
   float h = dht.readHumidity();
@@ -47,27 +46,28 @@ void loop() {
   // Check if any reads failed and exit early (to try again).
   if (isnan(h) || isnan(t)) {
     Serial.println("failed to read from DHT sensor!");
-    return;
+  } else {
+
+    // Compute heat index in Celsius
+    float hic = dht.computeHeatIndex(t, h, false);
+  
+    Serial.print("Humidity: ");
+    Serial.print(h);
+    Serial.print(" %\t");
+    Serial.print("Temperature: ");
+    Serial.print(t);
+    Serial.print(" *C\t");
+    Serial.print("Heat index: ");
+    Serial.print(hic);
+    Serial.println(" *C");
+  
+    send_data(t, h);
   }
 
-  // Compute heat index in Celsius
-  float hic = dht.computeHeatIndex(t, h, false);
-
-  Serial.print("Humidity: ");
-  Serial.print(h);
-  Serial.print(" %\t");
-  Serial.print("Temperature: ");
-  Serial.print(t);
-  Serial.print(" *C\t");
-  Serial.print("Heat index: ");
-  Serial.print(hic);
-  Serial.println(" *C");
-
-  send_data(t, h);
-
-  // Wait 4 minutes and 53 secs, total 5 minutes
-  // (cca 7 secs for sensor reading and request sending)
+  // Sleep for 295 secs. Power save deep sleep for ESP where GPIO16 and
+  // RST are soldered
   delay(295000);
+  // ESP.deepSleep(295 * 1000000);
 }
 
 void send_data(float t, float h) {

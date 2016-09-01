@@ -38,3 +38,19 @@ gnd -> gnd tx  -> rx
 6. Wait until uploading is done
 7. Release FLASH
 
+# ESP-07
+
+```
+tx       -> rx
+rx       -> tx
+gnd      -> gnd
+gp0      -> gnd
+gp15     -> gnd
+vcc      -> 3.3
+chp (en) -> 3.3
+```
+Connect Vcc to CH_PD to enable the chip
+Connect GPI0 to GND to enable flash reprogramming
+Connect GPI15 to GND to enable UART Download
+
+After uploading remove GP0
