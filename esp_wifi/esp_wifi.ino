@@ -1,9 +1,11 @@
 #include <ESP8266WiFi.h> // https://github.com/esp8266/Arduino
-#include <ArduinoJson.h> // https://github.com/bblanchon/ArduinoJson
+ADC_MODE(ADC_VCC);
+
 #include "DHT.h"         // https://github.com/adafruit/DHT-sensor-library
 
 #define DHTPIN 2
 #define DHTTYPE DHT22
+#define VCC_ADJ 1.096
 
 const char* ssid = "ssid";
 const char* pass = "pass";
@@ -42,6 +44,7 @@ void loop() {
   // Read sensor
   float h = dht.readHumidity();
   float t = dht.readTemperature();
+  float v = ESP.getVcc() * VCC_ADJ;
 
   // Check if any reads failed and exit early (to try again).
   if (isnan(h) || isnan(t)) {
@@ -59,9 +62,11 @@ void loop() {
     Serial.print(" *C\t");
     Serial.print("Heat index: ");
     Serial.print(hic);
-    Serial.println(" *C");
+    Serial.print(" *C\t");
+    Serial.print(v);
+    Serial.println("V");
   
-    send_data(t, h);
+    send_data(t, h, v);
   }
 
   // Sleep for 295 secs. Power save deep sleep for ESP where GPIO16 and
@@ -70,13 +75,7 @@ void loop() {
   // ESP.deepSleep(295 * 1000000);
 }
 
-void send_data(float t, float h) {
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
-  root["device"] = "wifi";
-  root["temperature"] = t;
-  root["humidity"] = h;
-
+void send_data(float t, float h, float v) {
   Serial.print("connecting to ");
   Serial.println(host);
 
@@ -86,14 +85,22 @@ void send_data(float t, float h) {
     return;
   }
 
-  client.println("POST /api/measurements HTTP/1.1");
+  String data = "bathroom t=";
+  data += t;
+  data += ",h=";
+  data += h;
+  data += ",v=";
+  data += v;
+  
+  client.println("POST /write?db=smarthome HTTP/1.1");
   client.print("Host: "); client.println(host);
   client.println("Cache-Control: no-cache");
   client.println("Content-Type: application/json");
+  client.println("Authorization: Basic cGhvZW5peDpoZXNsbw==");
   client.print("Content-Length: ");
-  client.println(root.measureLength());
+  client.println(data.length());
   client.println();
-  root.printTo(client);
+  client.println(data);
   client.println();
   delay(500);
 
