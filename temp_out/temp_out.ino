@@ -98,7 +98,29 @@ void send_data(float t, float h, float v) {
 }
 
 float get_temp() {
-  sensors.requestTemperatures();
-  return sensors.getTempCByIndex(0);
-}
+  int count = 1;
+  while (true) {
+    sensors.requestTemperatures();
+    float temp = sensors.getTempCByIndex(0);
 
+    // Errors:
+    // -127   ... device disconnected C
+    // -196.6 ... device disconnected F
+    // -7040  ... device disconnected raw
+    if (temp < -125) {
+      if (++count < 10) {
+        Serial.print("error ");
+        Serial.print(temp);
+        Serial.print(", try #");
+        Serial.println(count);
+        delay(6000);
+        continue;
+      } else {
+        Serial.print("return error code ");
+        Serial.println(temp);
+      }
+    }
+
+    return temp;
+  }
+}
