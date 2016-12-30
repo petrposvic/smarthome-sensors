@@ -42,7 +42,7 @@ void setup(void) {
 
 void loop(void) {
   float t = get_temp();
-  float v = ESP.getVcc() * VCC_ADJ;
+  float v = (ESP.getVcc() * VCC_ADJ) / 1000;
 
   if (t <= -999) {
     Serial.println("failed to read from sensor!");
