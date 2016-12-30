@@ -108,7 +108,7 @@ float get_temp() {
     // -196.6 ... device disconnected F
     // -7040  ... device disconnected raw
     if (temp < -125) {
-      if (++count < 10) {
+      if (count++ < 10) {
         Serial.print("error ");
         Serial.print(temp);
         Serial.print(", try #");
