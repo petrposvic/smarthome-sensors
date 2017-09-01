@@ -53,6 +53,7 @@ function start(pwm)
     last_temp = 0.0
     last_humi = 0.0
     last_time = 0
+    last_duty = 0
 
     -- Server web page, receive requests
     srv=net.createServer(net.TCP)
@@ -72,19 +73,22 @@ function start(pwm)
 
         if (_GET.pin == "ON") then
             pwm.setduty(ledPin, 1023)
+            last_duty = 1023
             print("LED on")
         elseif (_GET.pin == "NIGHT") then
             pwm.setduty(ledPin, 127)
+            last_duty = 127
             print("LED night")
         elseif (_GET.pin == "OFF") then
             pwm.setduty(ledPin, 0)
+            last_duty = 0
             print("LED off")
         end
 
         local buf = "<style>input {font-size: 4em;}</style>"
         buf = buf.."<h1>Bedroom lights</h1>"
         buf = buf.."<h2>"..last_temp.."*C, "..last_humi.."%</h2>"
-        buf = buf.."<h3>updated "..(tmr.time() - last_time).." sec(s) ago</h3>"
+        buf = buf.."<h3>updated "..(tmr.time() - last_time).." sec(s) ago, (duty = "..last_duty..")</h3>"
         buf = buf.."<form><input type=\"submit\" value=\"RELOAD\" /></form>"
         buf = buf.."<form><input type=\"submit\" name=\"pin\" value=\"OFF\" /></form>"
         buf = buf.."<form><input type=\"submit\" name=\"pin\" value=\"ON\" /></form>"
@@ -108,12 +112,22 @@ function start(pwm)
         -- Read DHT sensor each minute
         status, temp, humi, temp_dec, humi_dec = dht.read(dhtPin)
         if status == dht.OK then
-            print("DHT Temperature:"..temp..";".." Humidity:"..humi)
-            table.insert(data, temp)
-            table.insert(data, humi)
-            last_temp = temp
-            last_humi = humi
-            last_time = tmr.time()
+            if temp < -10 then
+                print("Ignore too low temperature "..temp)
+            elseif temp > 60 then
+                print("Ignore too high temperature "..temp)
+            elseif humi < 1 then
+                print("Ignore too low humidity "..humi)
+            elseif humi > 99 then
+                print("Ignore too high humidity "..humi)
+            else
+                print("DHT Temperature:"..temp..";".." Humidity:"..humi)
+                table.insert(data, temp)
+                table.insert(data, humi)
+                last_temp = temp
+                last_humi = humi
+                last_time = tmr.time()
+            end
         elseif status == dht.ERROR_CHECKSUM then
             print("DHT checksum error")
         elseif status == dht.ERROR_TIMEOUT then
