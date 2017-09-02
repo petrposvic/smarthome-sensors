@@ -32,9 +32,9 @@ wifi.setmode(wifi.STATION)
 wifi.sta.config(wifiSSID, wifiPass)
 tmr.alarm(0, 5000, tmr.ALARM_SINGLE, function()
     if (wifi.sta.getip() == nil) then
-        print("Wait to IP address!")
+        -- print("Wait to IP address!")
     else
-        print("New IP address is "..wifi.sta.getip())
+        -- print("New IP address is "..wifi.sta.getip())
         tmr.stop(0)
 
         -- Small LED blink
@@ -56,7 +56,7 @@ function start(pwm)
     last_duty = 0
 
     -- Server web page, receive requests
-    srv=net.createServer(net.TCP)
+    srv = net.createServer(net.TCP)
     srv:listen(80, function(conn)
         conn:on("receive", function(client, request)
 
@@ -71,18 +71,21 @@ function start(pwm)
             end
         end
 
-        if (_GET.pin == "ON") then
-            pwm.setduty(ledPin, 1023)
-            last_duty = 1023
-            print("LED on")
-        elseif (_GET.pin == "NIGHT") then
-            pwm.setduty(ledPin, 127)
-            last_duty = 127
-            print("LED night")
-        elseif (_GET.pin == "OFF") then
-            pwm.setduty(ledPin, 0)
-            last_duty = 0
-            print("LED off")
+        if (_GET.duty) then
+            local duty = tonumber(_GET.duty)
+            if duty ~= nil and duty >= 0 and duty <= 1023 then
+                last_duty = duty
+            elseif (_GET.duty == "ON") then
+                last_duty = 1023
+            elseif (_GET.duty == "NIGHT") then
+                last_duty = 127
+            elseif (_GET.duty == "SLEEP") then
+                last_duty = 63
+            elseif (_GET.duty == "OFF") then
+                last_duty = 0
+            end
+            pwm.setduty(ledPin, last_duty)
+            -- print("duty is "..duty)
         end
 
         local buf = "<style>input {font-size: 4em;}</style>"
@@ -90,9 +93,10 @@ function start(pwm)
         buf = buf.."<h2>"..last_temp.."*C, "..last_humi.."%</h2>"
         buf = buf.."<h3>updated "..(tmr.time() - last_time).." sec(s) ago, (duty = "..last_duty..")</h3>"
         buf = buf.."<form><input type=\"submit\" value=\"RELOAD\" /></form>"
-        buf = buf.."<form><input type=\"submit\" name=\"pin\" value=\"OFF\" /></form>"
-        buf = buf.."<form><input type=\"submit\" name=\"pin\" value=\"ON\" /></form>"
-        buf = buf.."<form><input type=\"submit\" name=\"pin\" value=\"NIGHT\" /></form>"
+        buf = buf.."<form><input type=\"submit\" name=\"duty\" value=\"OFF\" /></form>"
+        buf = buf.."<form><input type=\"submit\" name=\"duty\" value=\"ON\" /></form>"
+        buf = buf.."<form><input type=\"submit\" name=\"duty\" value=\"NIGHT\" /></form>"
+        buf = buf.."<form><input type=\"submit\" name=\"duty\" value=\"SLEEP\" /></form>"
         client:send(buf)
         client:close()
         collectgarbage();
@@ -113,15 +117,15 @@ function start(pwm)
         status, temp, humi, temp_dec, humi_dec = dht.read(dhtPin)
         if status == dht.OK then
             if temp < -10 then
-                print("Ignore too low temperature "..temp)
+                -- print("Ignore too low temperature "..temp)
             elseif temp > 60 then
-                print("Ignore too high temperature "..temp)
+                -- print("Ignore too high temperature "..temp)
             elseif humi < 1 then
-                print("Ignore too low humidity "..humi)
+                -- print("Ignore too low humidity "..humi)
             elseif humi > 99 then
-                print("Ignore too high humidity "..humi)
+                -- print("Ignore too high humidity "..humi)
             else
-                print("DHT Temperature:"..temp..";".." Humidity:"..humi)
+                -- print("DHT Temperature:"..temp..";".." Humidity:"..humi)
                 table.insert(data, temp)
                 table.insert(data, humi)
                 last_temp = temp
@@ -129,9 +133,9 @@ function start(pwm)
                 last_time = tmr.time()
             end
         elseif status == dht.ERROR_CHECKSUM then
-            print("DHT checksum error")
+            -- print("DHT checksum error")
         elseif status == dht.ERROR_TIMEOUT then
-            print("DHT timed out")
+            -- print("DHT timed out")
         end
 
         -- Send average values each 5 minutes
@@ -155,13 +159,13 @@ function start(pwm)
                 name.." t="..t_sum..",h="..h_sum..",v=0.0",
                 function(code, data)
                     if (code < 0) then
-                      print("HTTP request failed")
+                      -- print("HTTP request failed")
                     else
-                      print(code, data)
+                      -- print(code, data)
                     end
                 end)
         end
     end) then
-        print("failed to create timer")
+        -- print("failed to create timer")
     end
 end
