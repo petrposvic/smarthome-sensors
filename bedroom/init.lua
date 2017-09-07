@@ -15,6 +15,11 @@
 --   D9  = 3;
 --   D10 = 1;
 
+-- Timers:
+--   0 initial LED blink
+--     read DHT sensor
+--   1 dimming
+
 name = "bedroom"
 httpAddr = "http://influxdb:8086/write?db=smarthome"
 httpAuth = "Basic myPrivateAuthToken=="
@@ -55,6 +60,10 @@ function start(pwm)
     last_time = 0
     last_duty = 0
 
+    -- Actual speed and target duty for dimming
+    dimm_speed = 0
+    dimm_duty = -1
+
     -- Server web page, receive requests
     srv = net.createServer(net.TCP)
     srv:listen(80, function(conn)
@@ -66,7 +75,7 @@ function start(pwm)
         end
         local _GET = {}
         if (vars ~= nil) then
-            for k, v in string.gmatch(vars, "(%w+)=(%w+)&*") do
+            for k, v in string.gmatch(vars, "(%w+)=([a-zA-Z0-9_\-]+)&*") do
                 _GET[k] = v
             end
         end
@@ -78,9 +87,9 @@ function start(pwm)
             elseif (_GET.duty == "ON") then
                 last_duty = 1023
             elseif (_GET.duty == "NIGHT") then
-                last_duty = 127
-            elseif (_GET.duty == "SLEEP") then
                 last_duty = 63
+            elseif (_GET.duty == "SLEEP") then
+                last_duty = 15
             elseif (_GET.duty == "OFF") then
                 last_duty = 0
             end
@@ -88,15 +97,59 @@ function start(pwm)
             -- print("duty is "..duty)
         end
 
+        if (_GET.targetDuty) then
+            tmr.unregister(1)
+
+            dimm_speed = 0
+            if (_GET.speed) then
+                local speed = tonumber(_GET.speed)
+                if (speed ~= nil) then
+                    dimm_speed = speed
+                end
+            end
+
+            local duty = tonumber(_GET.targetDuty)
+            if (dimm_speed == 0 or duty == nil or duty < 0 or duty > 1023) then
+                dimm_speed = 0
+                dimm_duty = -1
+            else
+                dimm_duty = duty
+
+                if not tmr.alarm(1, 1000, tmr.ALARM_AUTO, function()
+                    last_duty = last_duty - dimm_speed
+                    if ((dimm_speed > 0 and last_duty <= dimm_duty) or (dimm_speed < 0 and last_duty >= dimm_duty)) then
+                        last_duty = dimm_duty
+                        -- print("target duty reached")
+
+                        dimm_speed = 0
+                        dimm_duty = -1
+                        tmr.unregister(1)
+                    elseif (last_duty < 0 or last_duty > 1023) then
+                        last_duty = 0
+                        -- print("finished")
+
+                        dimm_speed = 0
+                        dimm_duty = -1
+                        tmr.unregister(1)
+                    end
+                    pwm.setduty(ledPin, last_duty)
+                    -- print("new duty = "..last_duty)
+                end) then
+                    -- print("failed to create timer")
+                end
+            end
+        end
+
         local buf = "<style>input {font-size: 4em;}</style>"
         buf = buf.."<h1>Bedroom lights</h1>"
         buf = buf.."<h2>"..last_temp.."*C, "..last_humi.."%</h2>"
-        buf = buf.."<h3>updated "..(tmr.time() - last_time).." sec(s) ago, (duty = "..last_duty..")</h3>"
+        buf = buf.."<h3>updated "..(tmr.time() - last_time).." sec(s) ago, (duty = "..last_duty.."/"..dimm_duty..", speed = "..dimm_speed..")</h3>"
         buf = buf.."<form><input type=\"submit\" value=\"RELOAD\" /></form>"
         buf = buf.."<form><input type=\"submit\" name=\"duty\" value=\"OFF\" /></form>"
         buf = buf.."<form><input type=\"submit\" name=\"duty\" value=\"ON\" /></form>"
         buf = buf.."<form><input type=\"submit\" name=\"duty\" value=\"NIGHT\" /></form>"
         buf = buf.."<form><input type=\"submit\" name=\"duty\" value=\"SLEEP\" /></form>"
+        buf = buf.."<form><input type=\"text\" name=\"targetDuty\" value=\"15\" placeholder=\"Target Duty\" /><input type=\"text\" name=\"speed\" value=\"1\" placeholder=\"Speed\" /><input type=\"submit\" value=\"Set dimming\" /></form>"
         client:send(buf)
         client:close()
         collectgarbage();
